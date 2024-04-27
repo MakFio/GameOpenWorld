@@ -2,17 +2,20 @@ import tkinter as tk
 import random
 import matplotlib.pyplot as plt
 from game_functions import move_player, get_health_info, PoisonCloud
+from Structure import Walls
 
 class MiniGame:
     def __init__(self, master):
         self.master = master
-        self.master.title("Простая игра")
+        self.master.title("ТипоOpenGameWorld")
         self.master.geometry("450x500")  # Пользовательский интерфейс
 
         self.width = 1001
         self.height = 1001
 
         self.player_health = 100  # Здоровье игрока
+        self.walls = Walls(self.width, self.height)  # Создание экземпляра класса Walls
+        self.walls.generate_walls()  # Генерация стен
         self.cloud = PoisonCloud(self.width, self.height)
         self.cloud.generate_clouds()
         self.restart_game()
@@ -96,10 +99,11 @@ class MiniGame:
     def move_player(self, dx, dy):
         new_x, new_y = move_player(self.player_x, self.player_y, dx, dy)
         if -1000 <= new_x <= 1000 and -1000 <= new_y <= 1000:
-            self.player_x = new_x
-            self.player_y = new_y
-            self.check_poison_cloud()
-            self.update_player_position()
+            if not self.walls.is_in_wall(new_x, new_y):
+                self.player_x = new_x
+                self.player_y = new_y
+                self.check_poison_cloud()
+                self.update_player_position()
 
     def check_poison_cloud(self):
         if self.cloud.is_in_cloud(self.player_x, self.player_y):
@@ -128,6 +132,12 @@ class MiniGame:
             for j in range(8):
                 if self.cloud.is_in_cloud(self.player_x + j - 3, self.player_y + 2 - i):
                     self.button_colors[i][j] = "green"
+
+        # Определение цвета для каждой кнопки на основе наличия стены
+        for i in range(8):
+            for j in range(8):
+                if self.walls.is_in_wall(self.player_x + j - 3, self.player_y + 2 - i):
+                    self.button_colors[i][j] = "black"
 
         # Установка синей ячейки персонажа
         self.button_colors[6 - player_y_pos][player_x_pos] = "blue"
@@ -158,6 +168,10 @@ class MiniGame:
         # Отображение ядовитого тумана на карте мира
         for cloud in self.cloud.clouds:
             ax.add_patch(plt.Rectangle((cloud['x'], cloud['y']), cloud['width'], cloud['height'], color='purple', alpha=0.5))
+
+        # Отображение стен на карте мира
+        for wall in self.walls.walls:
+            ax.add_patch(plt.Rectangle((wall['x'], wall['y']), wall['width'], wall['height'], color='black', alpha=0.5))
 
         plt.grid(True)
         plt.show()

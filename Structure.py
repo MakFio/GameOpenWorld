@@ -8,7 +8,7 @@ class Walls:
         self.walls = []
 
     def generate_walls(self):
-        num_walls = random.randint(35, 50)
+        num_walls = random.randint(15, 30)
         for _ in range(num_walls):
             x_center = random.randint(-self.width + 25, self.width - 25)
             y_center = random.randint(-self.height + 25, self.height - 25)

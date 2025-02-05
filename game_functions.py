@@ -14,11 +14,24 @@ class PoisonCloud:
         self.clouds = []
 
     def generate_clouds(self):
-        num_clouds = random.randint(75, 100)
+        num_clouds = random.randint(75, 100)  # Общее количество облаков
         for _ in range(num_clouds):
-            x_center = random.randint(-self.width + 30, self.width - 30)  # Увеличили отступы
+            x_center = random.randint(-self.width + 30, self.width - 30)  # Отступы для координат
             y_center = random.randint(-self.height + 30, self.height - 30)
-            radius = random.randint(5, 30)  # Увеличили диапазон радиуса
+
+            # Определяем категорию облака (Малое, Среднее, Большое)
+            category = random.choices(
+                ['small', 'medium', 'large'],
+                weights=[0.6, 0.3, 0.1]  # Вероятности: 60%, 30%, 10%
+            )[0]
+
+            # Генерируем размер в зависимости от категории
+            if category == 'small':
+                radius = random.randint(5, 15)  # Малые облака
+            elif category == 'medium':
+                radius = random.randint(16, 40)  # Средние облака
+            else:  # large
+                radius = random.randint(41, 70)  # Большие облака
 
             cloud = {
                 'x': x_center - radius,
@@ -27,13 +40,13 @@ class PoisonCloud:
                 'height': 2 * radius
             }
 
-            if not self.is_too_close(cloud):
+            if not self.is_too_close(cloud):  # Проверяем близость к другим облакам
                 self.clouds.append(cloud)
 
     def is_too_close(self, new_cloud):
         for cloud in self.clouds:
             distance = math.hypot(new_cloud['x'] - cloud['x'], new_cloud['y'] - cloud['y'])
-            if distance < 40:  # Увеличили минимальное расстояние
+            if distance < 40:  # Минимальное расстояние между облаками
                 return True
         return False
 

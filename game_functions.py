@@ -16,9 +16,9 @@ class PoisonCloud:
     def generate_clouds(self):
         num_clouds = random.randint(75, 100)
         for _ in range(num_clouds):
-            x_center = random.randint(-self.width + 25, self.width - 25)
-            y_center = random.randint(-self.height + 25, self.height - 25)
-            radius = random.randint(3, 25)
+            x_center = random.randint(-self.width + 30, self.width - 30)  # Увеличили отступы
+            y_center = random.randint(-self.height + 30, self.height - 30)
+            radius = random.randint(5, 30)  # Увеличили диапазон радиуса
 
             cloud = {
                 'x': x_center - radius,
@@ -33,7 +33,7 @@ class PoisonCloud:
     def is_too_close(self, new_cloud):
         for cloud in self.clouds:
             distance = math.hypot(new_cloud['x'] - cloud['x'], new_cloud['y'] - cloud['y'])
-            if distance < 30:
+            if distance < 40:  # Увеличили минимальное расстояние
                 return True
         return False
 

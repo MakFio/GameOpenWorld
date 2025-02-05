@@ -8,7 +8,7 @@ class MiniGame:
     def __init__(self, master):
         self.master = master
         self.master.title("ТипоOpenGameWorld")
-        self.master.geometry("450x500")  # Пользовательский интерфейс
+        self.master.geometry("500x550")  # Увеличиваем размер окна
         self.width = 1001
         self.height = 1001
         self.player_health = 100  # Здоровье игрока
@@ -39,9 +39,11 @@ class MiniGame:
         self.frame = tk.Frame(self.master)
         self.frame.pack()
 
-        self.buttons = [[tk.Button(self.frame, width=5, height=2) for _ in range(8)] for _ in range(8)]
-        for i in range(8):
-            for j in range(8):
+        # Создаем сетку 10x10
+        self.grid_size = 10
+        self.buttons = [[tk.Button(self.frame, width=4, height=2) for _ in range(self.grid_size)] for _ in range(self.grid_size)]
+        for i in range(self.grid_size):
+            for j in range(self.grid_size):
                 self.buttons[i][j].grid(row=i, column=j)
 
         # Обновление позиции игрока
@@ -77,21 +79,28 @@ class MiniGame:
             for button in row:
                 button.config(bg="white")
 
-        # Отрисовка границ мира
-        for i in range(8):
-            for j in range(8):
-                x, y = self.player_x + j - 3, self.player_y + 2 - i
-                if not (-1000 <= x <= 1000 and -1000 <= y <= 1000):
-                    self.buttons[i][j].config(bg="red")
-                elif self.walls.is_in_wall(x, y):
-                    self.buttons[i][j].config(bg="black")
-                elif self.cloud.is_in_cloud(x, y):
-                    self.buttons[i][j].config(bg="green")
+        # Определяем видимую область (10x10 вокруг игрока)
+        visible_area = {
+            'min_x': self.player_x - 5,
+            'max_x': self.player_x + 4,
+            'min_y': self.player_y - 5,
+            'max_y': self.player_y + 4
+        }
 
-        # Отображение игрока
-        player_x_pos = self.player_x % 8
-        player_y_pos = self.player_y % 8
-        self.buttons[6 - player_y_pos][player_x_pos].config(bg="blue")
+        # Отображение объектов в видимой области
+        for i in range(self.grid_size):
+            for j in range(self.grid_size):
+                x = visible_area['min_x'] + j
+                y = visible_area['min_y'] + (self.grid_size - 1 - i)  # Инвертируем ось y
+
+                if not (-1000 <= x <= 1000 and -1000 <= y <= 1000):
+                    self.buttons[i][j].config(bg="red")  # За пределами мира
+                elif self.walls.is_in_wall(x, y):
+                    self.buttons[i][j].config(bg="black")  # Стена
+                elif self.cloud.is_in_cloud(x, y):
+                    self.buttons[i][j].config(bg="green")  # Ядовитое облако
+                elif x == self.player_x and y == self.player_y:
+                    self.buttons[i][j].config(bg="blue")  # Игрок
 
         # Обновление метки позиции
         self.label_position.config(text=f"Текущая позиция: X={self.player_x}, Y={self.player_y}")

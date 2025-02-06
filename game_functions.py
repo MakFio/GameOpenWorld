@@ -8,16 +8,15 @@ def get_health_info(health):
     return f"Здоровье: {health}"
 
 class PoisonCloud:
-    def __init__(self, width, height):
-        self.width = width
-        self.height = height
+    def __init__(self, world_size):
+        self.world_size = world_size
         self.clouds = []
 
     def generate_clouds(self):
-        num_clouds = random.randint(75, 100)  # Общее количество облаков
+        num_clouds = random.randint(75, 100)
         for _ in range(num_clouds):
-            x_center = random.randint(-self.width + 30, self.width - 30)  # Отступы для координат
-            y_center = random.randint(-self.height + 30, self.height - 30)
+            x_center = random.randint(-self.world_size + 30, self.world_size - 30)
+            y_center = random.randint(-self.world_size + 30, self.world_size - 30)
 
             # Определяем категорию облака (Малое, Среднее, Большое)
             category = random.choices(
@@ -27,11 +26,11 @@ class PoisonCloud:
 
             # Генерируем размер в зависимости от категории
             if category == 'small':
-                radius = random.randint(5, 15)  # Малые облака
+                radius = random.randint(5, 10)  # Малые облака
             elif category == 'medium':
-                radius = random.randint(16, 40)  # Средние облака
+                radius = random.randint(11, 22)  # Средние облака
             else:  # large
-                radius = random.randint(41, 70)  # Большие облака
+                radius = random.randint(23, 35)  # Большие облака
 
             cloud = {
                 'x': x_center - radius,

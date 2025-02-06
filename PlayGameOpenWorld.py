@@ -1,21 +1,23 @@
 import tkinter as tk
 import random
 import matplotlib.pyplot as plt
-from OpenWorld.game_functions import move_player, get_health_info, PoisonCloud
+from game_functions import move_player, get_health_info, PoisonCloud
 from Structure import Walls
 
 class MiniGame:
     def __init__(self, master):
         self.master = master
         self.master.title("ТипоOpenGameWorld")
-        self.master.geometry("550x600")  # Увеличиваем размер окна для новой сетки
-        self.width = 1001
-        self.height = 1001
-        self.player_health = 100  # Здоровье игрока
-        self.player_kringles = 0  # Новая характеристика: кринжики
-        self.walls = Walls(self.width, self.height)  # Создание экземпляра класса Walls
+        self.master.geometry("550x600")  # Размер окна
+
+        # Инициализация параметров мира
+        self.world_size = 1001  # Размер мира (можно изменить)
+        self.player_health = 100  # Текущее здоровье игрока
+        self.max_health = 100  # Максимальное здоровье игрока (динамическая переменная)
+        self.player_kringles = 0  # Количество кринжиков
+        self.walls = Walls(self.world_size)  # Создание экземпляра класса Walls
         self.walls.generate_walls()  # Генерация стен с новыми параметрами
-        self.cloud = PoisonCloud(self.width, self.height)
+        self.cloud = PoisonCloud(self.world_size)
         self.cloud.generate_clouds()  # Генерация облаков с новыми параметрами
         self.restart_game()
 
@@ -25,9 +27,9 @@ class MiniGame:
             widget.destroy()
 
         # Инициализация параметров игры
-        self.player_x = random.randint(-1000, 1000)
-        self.player_y = random.randint(-1000, 1000)
-        self.player_health = 100
+        self.player_x = random.randint(-self.world_size + 10, self.world_size - 10)
+        self.player_y = random.randint(-self.world_size + 10, self.world_size - 10)
+        self.player_health = self.max_health  # Восстанавливаем здоровье до максимума
         self.player_kringles = 0  # Сбрасываем количество кринжиков
         self.history = [(self.player_x, self.player_y)]
 
@@ -38,7 +40,7 @@ class MiniGame:
         self.label_health = tk.Label(self.master, text=get_health_info(self.player_health))
         self.label_health.pack()
 
-        self.label_kringles = tk.Label(self.master, text=f"Кринжики: {self.player_kringles}")  # Новый метка для кринжиков
+        self.label_kringles = tk.Label(self.master, text=f"Кринжики: {self.player_kringles}")  # Метка для кринжиков
         self.label_kringles.pack()
 
         self.frame = tk.Frame(self.master)
@@ -63,7 +65,11 @@ class MiniGame:
 
     def move_player(self, dx, dy):
         new_x, new_y = move_player(self.player_x, self.player_y, dx, dy)
-        if -1000 <= new_x <= 1000 and -1000 <= new_y <= 1000 and not self.walls.is_in_wall(new_x, new_y):
+        if (
+            -self.world_size <= new_x <= self.world_size and
+            -self.world_size <= new_y <= self.world_size and
+            not self.walls.is_in_wall(new_x, new_y)
+        ):
             self.player_x, self.player_y = new_x, new_y
             self.check_poison_cloud()
             self.check_healing_potion()
@@ -79,13 +85,14 @@ class MiniGame:
 
     def check_healing_potion(self):
         """Проверяет, находится ли игрок в области аптечки."""
-        if self.walls.is_in_potion(self.player_x, self.player_y):
-            self.player_health = min(self.player_health + 25, 100)  # Восстанавливаем 25% здоровья
+        if self.walls.interactive_items.is_in_potion(self.player_x, self.player_y):
+            healing_amount = 25  # Количество здоровья, которое восстанавливает аптечка
+            self.player_health = min(self.player_health + healing_amount, self.max_health)
             self.label_health.config(text=get_health_info(self.player_health))
 
     def collect_kringles(self):
         """Проверяет, находится ли игрок в области кучки кринжиков."""
-        collected_kringles = self.walls.is_in_kringle_pile(self.player_x, self.player_y)
+        collected_kringles = self.walls.interactive_items.is_in_kringle_pile(self.player_x, self.player_y)
         if collected_kringles > 0:
             self.player_kringles += collected_kringles
             self.label_kringles.config(text=f"Кринжики: {self.player_kringles}")
@@ -113,7 +120,7 @@ class MiniGame:
                 x = visible_area['min_x'] + j
                 y = visible_area['min_y'] + (self.grid_size - 1 - i)  # Инвертируем ось y
 
-                if not (-1000 <= x <= 1000 and -1000 <= y <= 1000):
+                if not (-self.world_size <= x <= self.world_size and -self.world_size <= y <= self.world_size):
                     self.buttons[i][j].config(bg="red")  # За пределами мира
                 elif self.walls.is_in_wall(x, y):
                     self.buttons[i][j].config(bg="black")  # Стена
@@ -122,13 +129,13 @@ class MiniGame:
                 elif any(
                     pile['x'] <= x <= pile['x'] + pile['width'] and
                     pile['y'] <= y <= pile['y'] + pile['height']
-                    for pile in self.walls.kringle_piles
+                    for pile in self.walls.interactive_items.kringle_piles
                 ):
                     self.buttons[i][j].config(bg="yellow")  # Кучка кринжиков
                 elif any(
                     potion['x'] <= x <= potion['x'] + potion['width'] and
                     potion['y'] <= y <= potion['y'] + potion['height']
-                    for potion in self.walls.healing_potions
+                    for potion in self.walls.interactive_items.healing_potions
                 ):
                     self.buttons[i][j].config(bg="orange")  # Аптечка
                 elif x == self.player_x and y == self.player_y:
@@ -150,9 +157,14 @@ class MiniGame:
         ax.plot(x_values[-1], y_values[-1], marker='o', color='r', markersize=10)
 
         # Отображение границ мира
-        ax.plot([-1000, -1000, 1000, 1000, -1000], [-1000, 1000, 1000, -1000, -1000], color='red')
+        world_boundary = self.world_size
+        ax.plot(
+            [-world_boundary, -world_boundary, world_boundary, world_boundary, -world_boundary],
+            [-world_boundary, world_boundary, world_boundary, -world_boundary, -world_boundary],
+            color='red'
+        )
 
-        # Отображение ядовитых облаков
+        # Отображение ядовитых облачков
         for cloud in self.cloud.clouds:
             ax.add_patch(plt.Rectangle((cloud['x'], cloud['y']), cloud['width'], cloud['height'], color='purple', alpha=0.5))
 
@@ -161,11 +173,11 @@ class MiniGame:
             ax.add_patch(plt.Rectangle((wall['x'], wall['y']), wall['width'], wall['height'], color='black', alpha=0.5))
 
         # Отображение аптечек
-        for potion in self.walls.healing_potions:
+        for potion in self.walls.interactive_items.healing_potions:
             ax.add_patch(plt.Rectangle((potion['x'], potion['y']), potion['width'], potion['height'], color='orange', alpha=0.7))
 
         # Отображение кучек кринжиков
-        for pile in self.walls.kringle_piles:
+        for pile in self.walls.interactive_items.kringle_piles:
             ax.add_patch(plt.Rectangle((pile['x'], pile['y']), pile['width'], pile['height'], color='yellow', alpha=0.7))
 
         plt.grid(True)

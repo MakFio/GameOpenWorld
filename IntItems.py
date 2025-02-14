@@ -5,7 +5,7 @@ class InteractiveItems:
     def __init__(self, world_size):
         self.world_size = world_size
         self.healing_potions = []  # Список аптечек
-        self.kringle_piles = []    # Список кучек кринжиков
+        self.kringle_piles = []    # Список куч кринжиков
 
     def generate_healing_potions(self, x_center, y_center, castle_width, castle_height):
         """Генерирует аптечки вокруг замка."""
@@ -44,7 +44,7 @@ class InteractiveItems:
             while attempts < 100:
                 pile_x = random.randint(x_center + 5, x_center + castle_width - 9)
                 pile_y = random.randint(y_center + 5, y_center + castle_height - 9)
-                self.kringle_piles.append({'x': pile_x, 'y': pile_y, 'size': 'large', 'kringles': 15, 'width': 4, 'height': 4})
+                self.kringle_piles.append({'x': pile_x, 'y': pile_y, 'size': 'large', 'kringles': 50, 'width': 4, 'height': 4})
                 break
             attempts += 1
 
@@ -57,15 +57,15 @@ class InteractiveItems:
                 pile_y = random.randint(y_center - 40, y_center + castle_height + 40)
                 category = random.choices(['small', 'medium'], weights=[0.6, 0.4])[0]
                 if category == 'small':
-                    self.kringle_piles.append({'x': pile_x, 'y': pile_y, 'size': 'small', 'kringles': 2, 'width': 1, 'height': 1})
+                    self.kringle_piles.append({'x': pile_x, 'y': pile_y, 'size': 'small', 'kringles': 5, 'width': 1, 'height': 1})
                 else:
-                    self.kringle_piles.append({'x': pile_x, 'y': pile_y, 'size': 'medium', 'kringles': 5, 'width': 2, 'height': 2})
+                    self.kringle_piles.append({'x': pile_x, 'y': pile_y, 'size': 'medium', 'kringles': 10, 'width': 2, 'height': 2})
                 break
             attempts += 1
 
     def generate_kringle_piles_global(self, walls, total_kringle_piles=0):
         """Генерирует кучки кринжиков по всей карте (за исключением области вокруг замков)."""
-        while total_kringle_piles < 250:
+        while total_kringle_piles < 1500:
             x = random.randint(-self.world_size + 10, self.world_size - 10)
             y = random.randint(-self.world_size + 10, self.world_size - 10)
             if not any(
@@ -74,9 +74,9 @@ class InteractiveItems:
             ):
                 category = random.choices(['small', 'medium'], weights=[0.7, 0.3])[0]
                 if category == 'small':
-                    self.kringle_piles.append({'x': x, 'y': y, 'size': 'small', 'kringles': 2, 'width': 1, 'height': 1})
+                    self.kringle_piles.append({'x': x, 'y': y, 'size': 'small', 'kringles': 5, 'width': 1, 'height': 1})
                 else:
-                    self.kringle_piles.append({'x': x, 'y': y, 'size': 'medium', 'kringles': 5, 'width': 2, 'height': 2})
+                    self.kringle_piles.append({'x': x, 'y': y, 'size': 'medium', 'kringles': 10, 'width': 2, 'height': 2})
                 total_kringle_piles += 1
 
     def is_in_kringle_pile(self, x, y):

@@ -1,12 +1,14 @@
 import random
 import math
 from IntItems import InteractiveItems
+from Shop import Shop
 
 class Walls:
     def __init__(self, world_size):
         self.world_size = world_size
         self.walls = []
         self.interactive_items = InteractiveItems(world_size)  # Экземпляр для интерактивных предметов
+        self.shop = Shop(world_size)  # Экземпляр для магазинов
 
     def generate_walls(self):
         num_castles = random.randint(5, 10)  # Общее количество замков
@@ -16,8 +18,8 @@ class Walls:
             y_center = random.randint(-self.world_size + 50, self.world_size - 50)
 
             # Генерируем размер замка
-            castle_width = random.randint(30, 40)
-            castle_height = random.randint(30, 40)
+            castle_width = random.randint(30, 60)
+            castle_height = random.randint(30, 60)
 
             # Создаем основу замка (прямоугольник)
             walls_to_add = [
@@ -53,6 +55,15 @@ class Walls:
         # Генерируем кучки кринжиков по всей карте (за исключением области вокруг замков)
         self.interactive_items.generate_kringle_piles_global(self.walls, total_kringle_piles=0)
 
+        # Интегрируем магазины
+        self.integrate_shops()
+
+    def integrate_shops(self):
+        """Добавляет стены и разрушения магазинов в общий список."""
+        for shop in self.shop.shops:
+            self.walls.extend(shop['walls'])  # Добавляем стены магазина
+            self.walls.extend(shop['rubble'])  # Добавляем разрушения вокруг магазина
+
     def apply_destruction(self, walls):
         """Применяет эффект разрушения к стенам."""
         destroyed_walls = []
@@ -76,3 +87,13 @@ class Walls:
             ):
                 return True
         return False
+
+    def get_shop(self, x, y):
+        """Проверяет, находится ли игрок внутри магазина, и возвращает его данные."""
+        for shop in self.shop.shops:
+            if (
+                shop['center_x'] - 5 <= x <= shop['center_x'] + 15 and
+                shop['center_y'] - 5 <= y <= shop['center_y'] + 15
+            ):
+                return shop
+        return None

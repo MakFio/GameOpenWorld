@@ -1,8 +1,9 @@
 import tkinter as tk
 import random
 import matplotlib.pyplot as plt
-from game_functions import move_player, get_health_info, PoisonCloud
+from game_functions import move_player, PoisonCloud
 from Structure import Walls
+
 
 class MiniGame:
     def __init__(self, master):
@@ -13,7 +14,7 @@ class MiniGame:
         # Инициализация параметров мира
         self.world_size = 1001  # Размер мира (можно изменить)
         self.player_health = 100  # Текущее здоровье игрока
-        self.max_health = 100  # Максимальное здоровье игрока (динамическая переменная)
+        self.max_health = 100  # Максимальное здоровье игрока
         self.player_kringles = 0  # Количество кринжиков
         self.walls = Walls(self.world_size)  # Создание экземпляра класса Walls
         self.walls.generate_walls()  # Генерация стен с новыми параметрами
@@ -37,7 +38,7 @@ class MiniGame:
         self.label_position = tk.Label(self.master, text=f"Текущая позиция: X={self.player_x}, Y={self.player_y}")
         self.label_position.pack()
 
-        self.label_health = tk.Label(self.master, text=get_health_info(self.player_health))
+        self.label_health = tk.Label(self.master, text=self.get_health_display())
         self.label_health.pack()
 
         self.label_kringles = tk.Label(self.master, text=f"Кринжики: {self.player_kringles}")  # Метка для кринжиков
@@ -62,6 +63,11 @@ class MiniGame:
         self.master.bind("<Left>", lambda event: self.move_player(-1, 0))
         self.master.bind("<Right>", lambda event: self.move_player(1, 0))
         self.master.bind("<Return>", lambda event: self.show_full_map())
+        self.master.bind("<Tab>", lambda event: self.open_shop_menu())  # Открытие меню магазина
+
+    def get_health_display(self):
+        """Возвращает строку для отображения здоровья."""
+        return f"Здоровье: {self.player_health}/{self.max_health}"
 
     def move_player(self, dx, dy):
         new_x, new_y = move_player(self.player_x, self.player_y, dx, dy)
@@ -79,7 +85,7 @@ class MiniGame:
     def check_poison_cloud(self):
         if self.cloud.is_in_cloud(self.player_x, self.player_y):
             self.player_health -= 1
-            self.label_health.config(text=get_health_info(self.player_health))
+            self.label_health.config(text=self.get_health_display())
             if self.player_health <= 0:
                 self.restart_game()
 
@@ -88,7 +94,7 @@ class MiniGame:
         if self.walls.interactive_items.is_in_potion(self.player_x, self.player_y):
             healing_amount = 25  # Количество здоровья, которое восстанавливает аптечка
             self.player_health = min(self.player_health + healing_amount, self.max_health)
-            self.label_health.config(text=get_health_info(self.player_health))
+            self.label_health.config(text=self.get_health_display())
 
     def collect_kringles(self):
         """Проверяет, находится ли игрок в области кучки кринжиков."""
@@ -138,11 +144,77 @@ class MiniGame:
                     for potion in self.walls.interactive_items.healing_potions
                 ):
                     self.buttons[i][j].config(bg="orange")  # Аптечка
+                elif any(
+                    shop['center_x'] - 5 <= x <= shop['center_x'] + 15 and
+                    shop['center_y'] - 5 <= y <= shop['center_y'] + 15
+                    for shop in self.walls.shop.shops
+                ):
+                    self.buttons[i][j].config(bg="purple")  # Магазин
                 elif x == self.player_x and y == self.player_y:
                     self.buttons[i][j].config(bg="blue")  # Игрок
 
         # Обновление метки позиции
         self.label_position.config(text=f"Текущая позиция: X={self.player_x}, Y={self.player_y}")
+
+    def open_shop_menu(self):
+        """Открывает меню магазина, если игрок находится внутри."""
+        shop = self.walls.get_shop(self.player_x, self.player_y)
+        if shop:
+            items = self.walls.shop.open_shop_menu(self.player_kringles, self.max_health)
+
+            # Создаем новое окно для меню магазина
+            shop_window = tk.Toplevel(self.master)
+            shop_window.title("Лавка")
+            shop_window.geometry("300x300")
+
+            # Отображаем информацию о кринжиках
+            tk.Label(shop_window, text=f"Кринжики: {self.player_kringles}").pack(pady=5)
+
+            # Добавляем кнопки для каждого товара
+            for item in items:
+                item_name = item['name']
+                item_cost = item['cost']
+                effect = item['effect']
+
+                # Создаем кнопку для товара
+                tk.Button(
+                    shop_window,
+                    text=f"{item_name} (+{effect.get('health_bonus', 0)}): {item_cost} кринжиков",
+                    command=lambda cost=item_cost, health_bonus=effect.get('health_bonus', 0), max_bonus=effect.get('max_health_bonus', 0), name=item_name: self.buy_item(shop_window, cost, health_bonus, max_bonus, name)
+                ).pack(pady=5)
+
+            # Добавляем кнопку для выхода
+            tk.Button(shop_window, text="Выход", command=shop_window.destroy).pack(pady=10)
+
+    def buy_item(self, shop_window, cost, health_bonus, max_health_bonus, item_name):
+        """Обрабатывает покупку выбранного товара."""
+        if self.player_kringles >= cost:
+            self.player_kringles -= cost
+            if max_health_bonus > 0:  # Если товар увеличивает максимальное здоровье
+                self.max_health += max_health_bonus
+            else:  # Если товар восстанавливает текущее здоровье
+                self.player_health = min(self.player_health + health_bonus, self.max_health)
+
+            # Обновляем метки
+            self.label_kringles.config(text=f"Кринжики: {self.player_kringles}")
+            self.label_health.config(text=self.get_health_display())
+
+            # Обновляем историю покупок в конкретном магазине
+            for shop in self.walls.shop.shops:
+                if shop['center_x'] - 5 <= self.player_x <= shop['center_x'] + 15 and \
+                   shop['center_y'] - 5 <= self.player_y <= shop['center_y'] + 15:
+                    shop['purchases'][item_name] = shop['purchases'].get(item_name, 0) + 1
+                    break
+
+            tk.messagebox.showinfo("Покупка успешна", f"Вы приобрели {item_name}.")
+        else:
+            tk.messagebox.showinfo("Недостаточно кринжиков", "У вас недостаточно кринжиков для покупки!")
+
+        shop_window.destroy()  # Закрываем окно магазина
+
+    def get_health_display(self):
+        """Возвращает строку для отображения здоровья."""
+        return f"Здоровье: {self.player_health}/{self.max_health}"
 
     def show_full_map(self):
         fig, ax = plt.subplots()
@@ -179,6 +251,15 @@ class MiniGame:
         # Отображение кучек кринжиков
         for pile in self.walls.interactive_items.kringle_piles:
             ax.add_patch(plt.Rectangle((pile['x'], pile['y']), pile['width'], pile['height'], color='yellow', alpha=0.7))
+
+        # Отображение магазинов
+        for shop in self.walls.shop.shops:
+            ax.add_patch(plt.Rectangle(
+                (shop['center_x'] - 5, shop['center_y'] - 5),
+                11, 11,
+                color='purple',
+                alpha=0.7
+            ))
 
         plt.grid(True)
         plt.show()

@@ -4,7 +4,6 @@ class Shop:
     def __init__(self, world_size):
         self.world_size = world_size
         self.shops = []  # Список всех магазинов
-        self.generate_shops()
 
     def generate_shops(self):
         """Генерирует магазины на карте."""
@@ -23,7 +22,6 @@ class Shop:
         used_centers = set()  # Отслеживаем использованные центры
 
         for _ in range(num_shops):
-            # Выбираем случайную область для магазина
             center_x, center_y = random.choice(center_points)
             if center_x in used_centers:
                 continue  # Пропускаем уже использованные центры
@@ -61,7 +59,7 @@ class Shop:
                 walls[3]['height'] -= 6  # Уменьшаем высоту правой стены
                 walls[3]['y'] -= 6
 
-            # Добавляем разрушения вокруг магазина
+            # Генерируем разрушения вокруг магазина
             rubble = self.generate_rubble(center_x, center_y, shop_width, shop_height)
 
             # Сохраняем информацию о магазине
@@ -128,7 +126,18 @@ class Shop:
         return items
 
     def get_purchase_count(self, item_name):
-        """Возвращает количество покупок конкретного товара."""
+        """Возвращает количество покупок конкретного товара в ближайшем магазине."""
         for shop in self.shops:
-            return shop['purchases'].get(item_name, 0)  # Возвращаем 0, если товар еще не покупался
+            if 'purchases' in shop:
+                return shop['purchases'].get(item_name, 0)  # Возвращаем 0, если товар еще не покупался
         return 0
+
+    def get_shop(self, x, y):
+        """Проверяет, находится ли игрок внутри магазина, и возвращает его данные."""
+        for shop in self.shops:
+            if (
+                shop['center_x'] - 5 <= x <= shop['center_x'] + 15 and
+                shop['center_y'] - 5 <= y <= shop['center_y'] + 15
+            ):
+                return shop
+        return None

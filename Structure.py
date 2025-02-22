@@ -1,16 +1,24 @@
 import random
 import math
+
 from IntItems import InteractiveItems
 from Shop import Shop
+from game_functions import PoisonCloud
 
 class Walls:
-    def __init__(self, world_size):
+    def __init__(self, world_size, seed=None):
         self.world_size = world_size
+        self.seed = seed if seed is not None else random.randint(0, 1_000_000)  # Генерируем случайный seed, если не указан
+        random.seed(self.seed)  # Устанавливаем seed для воспроизводимости
         self.walls = []
         self.interactive_items = InteractiveItems(world_size)  # Экземпляр для интерактивных предметов
         self.shop = Shop(world_size)  # Экземпляр для магазинов
+        self.cloud = PoisonCloud(world_size)  # Экземпляр для ядовитых облаков
+        self.grid_size = 50  # Размер секции (ячейки сетки)
+        self.grid = {}  # Пространственная индексация
 
     def generate_walls(self):
+        """Генерирует стены, замки, магазины, облака и интерактивные предметы."""
         num_castles = random.randint(5, 10)  # Общее количество замков
 
         for _ in range(num_castles):
@@ -50,13 +58,104 @@ class Walls:
 
                 # Генерируем аптечки и кучки кринжиков вокруг замка
                 self.interactive_items.generate_healing_potions(x_center, y_center, castle_width, castle_height)
-                self.interactive_items.generate_kringle_piles_around_castle(x_center, y_center, castle_width, castle_height)
+                self.interactive_items.generate_kringle_piles_around_castle(
+                    self.walls, x_center, y_center, castle_width, castle_height
+                )
 
         # Генерируем кучки кринжиков по всей карте (за исключением области вокруг замков)
         self.interactive_items.generate_kringle_piles_global(self.walls, total_kringle_piles=0)
 
-        # Интегрируем магазины
+        # Генерируем магазины
+        self.shop.generate_shops()
+
+        # Генерируем ядовитые облака
+        self.cloud.generate_clouds()
+
+        # Интегрируем магазины в общий список стен
         self.integrate_shops()
+
+        # Создаем пространственную индексацию
+        self.create_spatial_index()
+
+    def create_spatial_index(self):
+        """Создает пространственную индексацию для стен и других объектов."""
+        for wall in self.walls:
+            grid_x = wall['x'] // self.grid_size
+            grid_y = wall['y'] // self.grid_size
+            key = (grid_x, grid_y)
+            if key not in self.grid:
+                self.grid[key] = {'walls': [], 'interactive': []}
+            self.grid[key]['walls'].append(wall)
+
+        for potion in self.interactive_items.healing_potions:
+            grid_x = potion['x'] // self.grid_size
+            grid_y = potion['y'] // self.grid_size
+            key = (grid_x, grid_y)
+            if key not in self.grid:
+                self.grid[key] = {'walls': [], 'interactive': []}
+            self.grid[key]['interactive'].append(potion)
+
+        for pile in self.interactive_items.kringle_piles:
+            grid_x = pile['x'] // self.grid_size
+            grid_y = pile['y'] // self.grid_size
+            key = (grid_x, grid_y)
+            if key not in self.grid:
+                self.grid[key] = {'walls': [], 'interactive': []}
+            self.grid[key]['interactive'].append(pile)
+
+        for cloud in self.cloud.clouds:
+            grid_x = cloud['x'] // self.grid_size
+            grid_y = cloud['y'] // self.grid_size
+            key = (grid_x, grid_y)
+            if key not in self.grid:
+                self.grid[key] = {'walls': [], 'interactive': []}
+            self.grid[key]['interactive'].append(cloud)
+
+    def remove_object_from_spatial_index(self, obj):
+        """Удаляет объект из пространственной индексации."""
+        grid_x = obj['x'] // self.grid_size
+        grid_y = obj['y'] // self.grid_size
+        key = (grid_x, grid_y)
+
+        if key in self.grid:
+            # Удаляем объект из списка walls или interactive
+            if 'walls' in obj:
+                if obj in self.grid[key]['walls']:
+                    self.grid[key]['walls'].remove(obj)
+            else:
+                if obj in self.grid[key]['interactive']:
+                    self.grid[key]['interactive'].remove(obj)
+
+            # Если ячейка пуста, удаляем её из сетки
+            if not self.grid[key]['walls'] and not self.grid[key]['interactive']:
+                del self.grid[key]
+
+
+    def get_objects_in_range(self, x, y):
+        """Возвращает объекты в текущей секции и соседних секциях."""
+        grid_x = x // self.grid_size
+        grid_y = y // self.grid_size
+        objects = {'walls': [], 'interactive': []}
+
+        for dx in [-1, 0, 1]:
+            for dy in [-1, 0, 1]:
+                key = (grid_x + dx, grid_y + dy)
+                if key in self.grid:
+                    objects['walls'].extend(self.grid[key]['walls'])
+                    objects['interactive'].extend(self.grid[key]['interactive'])
+
+        return objects
+
+    def is_in_wall(self, x, y):
+        """Проверяет, находится ли точка (например, позиция игрока) внутри стены."""
+        objects = self.get_objects_in_range(x, y)
+        for obj in objects.get('walls', []):  # Проверяем только стены
+            if (
+                obj['x'] <= x <= obj['x'] + obj['width'] and
+                obj['y'] <= y <= obj['y'] + obj['height']
+            ):
+                return True
+        return False
 
     def integrate_shops(self):
         """Добавляет стены и разрушения магазинов в общий список."""
@@ -78,22 +177,3 @@ class Walls:
             if distance < 60:  # Минимальное расстояние между замками
                 return True
         return False
-
-    def is_in_wall(self, x, y):
-        for wall in self.walls:
-            if (
-                wall['x'] <= x <= wall['x'] + wall['width'] and
-                wall['y'] <= y <= wall['y'] + wall['height']
-            ):
-                return True
-        return False
-
-    def get_shop(self, x, y):
-        """Проверяет, находится ли игрок внутри магазина, и возвращает его данные."""
-        for shop in self.shop.shops:
-            if (
-                shop['center_x'] - 5 <= x <= shop['center_x'] + 15 and
-                shop['center_y'] - 5 <= y <= shop['center_y'] + 15
-            ):
-                return shop
-        return None

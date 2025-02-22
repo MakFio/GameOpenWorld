@@ -1,9 +1,9 @@
 import random
 import math
-
 from IntItems import InteractiveItems
 from Shop import Shop
 from game_functions import PoisonCloud
+
 
 class Walls:
     def __init__(self, world_size, seed=None):
@@ -20,7 +20,6 @@ class Walls:
     def generate_walls(self):
         """Генерирует стены, замки, магазины, облака и интерактивные предметы."""
         num_castles = random.randint(5, 10)  # Общее количество замков
-
         for _ in range(num_castles):
             x_center = random.randint(-self.world_size + 50, self.world_size - 50)
             y_center = random.randint(-self.world_size + 50, self.world_size - 50)
@@ -43,7 +42,6 @@ class Walls:
                 inner_wall_x_max = x_center + castle_width - 15
                 inner_wall_y_min = y_center + 10
                 inner_wall_y_max = y_center + castle_height - 15
-
                 if inner_wall_x_min < inner_wall_x_max and inner_wall_y_min < inner_wall_y_max:
                     inner_wall_x = random.randint(inner_wall_x_min, inner_wall_x_max)
                     inner_wall_y = random.randint(inner_wall_y_min, inner_wall_y_max)
@@ -51,6 +49,9 @@ class Walls:
 
             # Применяем эффект разрушения (удаляем случайные части стен)
             walls_to_add = self.apply_destruction(walls_to_add)
+
+            # Применяем частичное разрушение стен
+            walls_to_add = [self.apply_partial_destruction(wall) for wall in walls_to_add]
 
             # Проверяем каждую стену на близость к существующим
             if all(not self.is_too_close(wall) for wall in walls_to_add):
@@ -86,7 +87,6 @@ class Walls:
             if key not in self.grid:
                 self.grid[key] = {'walls': [], 'interactive': []}
             self.grid[key]['walls'].append(wall)
-
         for potion in self.interactive_items.healing_potions:
             grid_x = potion['x'] // self.grid_size
             grid_y = potion['y'] // self.grid_size
@@ -94,7 +94,6 @@ class Walls:
             if key not in self.grid:
                 self.grid[key] = {'walls': [], 'interactive': []}
             self.grid[key]['interactive'].append(potion)
-
         for pile in self.interactive_items.kringle_piles:
             grid_x = pile['x'] // self.grid_size
             grid_y = pile['y'] // self.grid_size
@@ -102,7 +101,6 @@ class Walls:
             if key not in self.grid:
                 self.grid[key] = {'walls': [], 'interactive': []}
             self.grid[key]['interactive'].append(pile)
-
         for cloud in self.cloud.clouds:
             grid_x = cloud['x'] // self.grid_size
             grid_y = cloud['y'] // self.grid_size
@@ -116,7 +114,6 @@ class Walls:
         grid_x = obj['x'] // self.grid_size
         grid_y = obj['y'] // self.grid_size
         key = (grid_x, grid_y)
-
         if key in self.grid:
             # Удаляем объект из списка walls или interactive
             if 'walls' in obj:
@@ -125,25 +122,21 @@ class Walls:
             else:
                 if obj in self.grid[key]['interactive']:
                     self.grid[key]['interactive'].remove(obj)
-
             # Если ячейка пуста, удаляем её из сетки
             if not self.grid[key]['walls'] and not self.grid[key]['interactive']:
                 del self.grid[key]
-
 
     def get_objects_in_range(self, x, y):
         """Возвращает объекты в текущей секции и соседних секциях."""
         grid_x = x // self.grid_size
         grid_y = y // self.grid_size
         objects = {'walls': [], 'interactive': []}
-
         for dx in [-1, 0, 1]:
             for dy in [-1, 0, 1]:
                 key = (grid_x + dx, grid_y + dy)
                 if key in self.grid:
                     objects['walls'].extend(self.grid[key]['walls'])
                     objects['interactive'].extend(self.grid[key]['interactive'])
-
         return objects
 
     def is_in_wall(self, x, y):
@@ -170,6 +163,14 @@ class Walls:
             if random.random() < 0.8:  # 80% шанс оставить стену intact
                 destroyed_walls.append(wall)
         return destroyed_walls
+
+    def apply_partial_destruction(self, wall):
+        """Применяет частичное разрушение к стене."""
+        if random.random() < 0.5:  # 50% шанс частичного разрушения
+            wall['width'] = max(1, wall['width'] // 2)  # Уменьшаем ширину стены
+        if random.random() < 0.5:  # 50% шанс частичного разрушения
+            wall['height'] = max(1, wall['height'] // 2)  # Уменьшаем высоту стены
+        return wall
 
     def is_too_close(self, new_wall):
         for wall in self.walls:
